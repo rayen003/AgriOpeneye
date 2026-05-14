@@ -1,0 +1,15 @@
+.env
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+venv/
+data/gee_exports/
+# Exclude large training artifacts; keep small runtime parquets
+data/processed/training_data.csv
+data/processed/sen4agrinet_features.parquet
+data/processed/smoke/
+data/processed/confusion_matrix_xgb.csv
+data/processed/xgb_multiclass_report.txt
+node_modules/
+app/frontend/dist/

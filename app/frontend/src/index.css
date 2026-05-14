@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Leaflet map fills its container */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: #F7F5F0;
+}
+
+/* Tighten Leaflet tooltips */
+.leaflet-tooltip {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  border: 1px solid #e7e5e4;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  pointer-events: none;
+}
+
+/* Scrollbar styling for detail panel */
+.detail-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.detail-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.detail-scroll::-webkit-scrollbar-thumb {
+  background: #d6d3d1;
+  border-radius: 2px;
+}
