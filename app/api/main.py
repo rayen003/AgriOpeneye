@@ -1,7 +1,6 @@
 """FastAPI backend — serves parquet score and feature data as JSON."""
 
 from pathlib import Path
-import json
 import os
 from typing import Optional
 
@@ -12,12 +11,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 from dotenv import load_dotenv
 from pydantic import BaseModel
-
-# LangChain RAG
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain_community.vectorstores import FAISS
-from langchain.schema import Document
 
 # Load .env file
 load_dotenv()
@@ -71,43 +64,21 @@ def _load(path: Path) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# RAG — load pre-built FAISS index (committed to repo, no re-embedding needed)
+# Knowledge base — loaded once at startup, injected in full into chat prompt
+# (KB is ~5k tokens; gpt-4o-mini context is 128k — no chunking/FAISS needed)
 # ---------------------------------------------------------------------------
 _API_DIR = Path(__file__).resolve().parent
-FAISS_INDEX_PATH = _API_DIR / "faiss_index"
-_vectorstore = None
-
-def _build_vectorstore():
-    global _vectorstore
-    if _vectorstore is not None:
-        return _vectorstore
-    embeddings = OpenAIEmbeddings(api_key=os.getenv("OPENAI_API_KEY"))
-    if FAISS_INDEX_PATH.exists():
-        try:
-            _vectorstore = FAISS.load_local(
-                str(FAISS_INDEX_PATH), embeddings, allow_dangerous_deserialization=True
-            )
-            print(f"[RAG] Loaded pre-built FAISS index from {FAISS_INDEX_PATH}")
-            return _vectorstore
-        except Exception as e:
-            print(f"[RAG] Failed to load index: {e} — falling back to build")
-    # Fallback: build from KB text (first run or missing index)
-    kb_path = _API_DIR / "knowledge_base.md"
-    if not kb_path.exists():
-        print(f"[RAG] Knowledge base not found at {kb_path}")
-        return None
-    from langchain.text_splitter import RecursiveCharacterTextSplitter
-    text = kb_path.read_text()
-    splitter = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=80)
-    docs = [Document(page_content=c) for c in splitter.split_text(text)]
-    _vectorstore = FAISS.from_documents(docs, embeddings)
-    print(f"[RAG] Built FAISS index: {len(docs)} chunks")
-    return _vectorstore
-
+_KB_TEXT: str = ""
 
 @app.on_event("startup")
 async def startup():
-    _build_vectorstore()
+    global _KB_TEXT
+    kb_path = _API_DIR / "knowledge_base.md"
+    if kb_path.exists():
+        _KB_TEXT = kb_path.read_text()
+        print(f"[KB] Loaded knowledge base ({len(_KB_TEXT)} chars)")
+    else:
+        print(f"[KB] WARNING: knowledge base not found at {kb_path}")
 
 
 # ---------------------------------------------------------------------------
@@ -165,15 +136,7 @@ def _format_parcel_context(parcel_id: int, region: str) -> str:
 
 @app.post("/api/chat")
 def chat(body: ChatRequest):
-    """RAG-powered farmer chat assistant."""
-    vs = _build_vectorstore()
-
-    # Retrieve relevant KB chunks
-    kb_context = ""
-    if vs:
-        docs = vs.similarity_search(body.message, k=3)
-        kb_context = "\n\n---\n\n".join(d.page_content for d in docs)
-
+    """KB-grounded farmer chat assistant."""
     # Parcel context (if user has a parcel selected)
     parcel_context = ""
     if body.parcel_id is not None and body.region in SCORE_FILES:
@@ -183,18 +146,19 @@ def chat(body: ChatRequest):
 
 Rules:
 - Answer in plain, direct language. No jargon without explanation.
-- Keep answers short — 2–4 sentences max unless the farmer needs a detailed breakdown.
-- Ground every answer in the knowledge base context below. Never invent data.
+- Keep answers short — 2–4 sentences max unless a detailed breakdown is needed.
+- Ground every answer in the knowledge base below. Never invent data or scores.
 - If asked about a specific parcel, use the parcel data provided.
-- If asked something outside your scope (weather, pricing, subsidies), say so and suggest where to look.
+- If asked something outside scope (weather, pricing, subsidies), say so and suggest where to look.
 - Do not apologise or use filler phrases.
 
-Knowledge base context:
+=== KNOWLEDGE BASE ===
 {kb}
+=== END KNOWLEDGE BASE ===
 
 {parcel_section}""".format(
-        kb=kb_context or "No relevant context found.",
-        parcel_section=f"Current parcel data:\n{parcel_context}" if parcel_context else "",
+        kb=_KB_TEXT or "Knowledge base not available.",
+        parcel_section=f"=== SELECTED PARCEL ===\n{parcel_context}\n=== END PARCEL ===" if parcel_context else "",
     )
 
     messages = [{"role": "system", "content": system_prompt}]
