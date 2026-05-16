@@ -1,6 +1,5 @@
-# Frontend build artifacts (generated on Vercel, not needed in upload)
+# Frontend node_modules only (dist/ is committed and served as static)
 app/frontend/node_modules/
-app/frontend/dist/
 
 # Large training/processing artifacts (not needed at runtime)
 data/processed/training_data.csv

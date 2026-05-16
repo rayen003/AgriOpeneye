@@ -12,4 +12,5 @@ data/processed/smoke/
 data/processed/confusion_matrix_xgb.csv
 data/processed/xgb_multiclass_report.txt
 node_modules/
-app/frontend/dist/
+# app/frontend/dist/ — committed for Vercel static serving
+.vercel
