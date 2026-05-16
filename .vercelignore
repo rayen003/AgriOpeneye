@@ -1,23 +1,15 @@
-# Exclude everything the Python lambda doesn't need
+# Frontend build artifacts (generated on Vercel, not needed in upload)
 app/frontend/node_modules/
 app/frontend/dist/
-app/frontend/src/
-app/frontend/public/
-app/frontend/index.html
-app/frontend/package.json
-app/frontend/package-lock.json
-app/frontend/vite.config.js
-app/frontend/tailwind.config.js
-app/frontend/postcss.config.js
 
-# Large training/processing artifacts
+# Large training/processing artifacts (not needed at runtime)
 data/processed/training_data.csv
 data/processed/sen4agrinet_features.parquet
 data/processed/smoke/
 data/raw/
 data/gee_exports/
 
-# Scripts and infra not needed at runtime
+# Scripts and infra
 scripts/
 infra/
 src/
