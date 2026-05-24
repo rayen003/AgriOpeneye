@@ -377,43 +377,35 @@ src/scaler_*.pkl
 
 ```text
 .
-├── AGENTS.md
 ├── README.md
+├── MEETING_NOTES.md
+├── vercel.json
+├── requirements.txt
+├── start.sh
 ├── app/
-│   └── main.py
+│   ├── api/
+│   │   ├── main.py               FastAPI backend
+│   │   ├── requirements.txt
+│   │   └── knowledge_base.md     Chat assistant knowledge base
+│   └── frontend/
+│       ├── src/
+│       │   ├── App.jsx
+│       │   ├── constants.js
+│       │   └── components/       Header, ParcelMap, DetailPanel, ChatPanel, etc.
+│       ├── package.json
+│       └── dist/                 Pre-built static assets (committed for Vercel)
 ├── data/
 │   ├── crop_profiles.csv
-│   ├── gee_exports/
-│   │   ├── catalonia_2023.csv
-│   │   └── bavaria_2023.csv
 │   └── processed/
-│       ├── training_data.csv
 │       ├── catalonia_scores.parquet
 │       ├── bavaria_scores.parquet
-│       ├── catalonia_scores_xgb.parquet
-│       ├── bavaria_scores_xgb.parquet
-│       ├── confusion_matrix_xgb.csv
-│       └── xgb_multiclass_report.txt
-├── infra/
-│   ├── main.tf
-│   ├── variables.tf
-│   ├── outputs.tf
-│   └── destroy.sh
-├── scripts/
-│   ├── setup_ec2.sh
-│   ├── download_and_process.py
-│   ├── process_cached_netcdf_ec2.py
-│   ├── smoke_batch_ec2.py
-│   ├── train_and_infer.py
-│   ├── legacy_train_binary_mlp.py
-│   ├── train_xgb_multiclass.py
-│   └── sync_results.sh
+│       ├── catalonia_features_2023.parquet
+│       └── bavaria_features_2023.parquet
+├── infra/                        Terraform AWS infrastructure
+├── scripts/                      EC2 preprocessing + training scripts
 └── src/
-    ├── __init__.py
     ├── features.py
-    ├── model_xgb_multiclass.pkl
-    ├── model_*.pkl
-    └── scaler_*.pkl
+    └── model_xgb_multiclass.pkl
 ```
 
 ## Reproducing The Pipeline
@@ -514,8 +506,11 @@ aws s3 cp data/processed/bavaria_scores_xgb.parquet s3://agri-open-eye-data/proc
 ### 7. Run The App
 
 ```bash
-streamlit run app/main.py
+./start.sh
 ```
+
+The app runs on http://localhost:5173 (frontend) and http://localhost:8000 (API).
+Add OPENAI_API_KEY to .env to enable chat assistant and AI summaries.
 
 The app reads:
 
@@ -586,6 +581,13 @@ If this project became real, the highest-impact structural changes would be:
 - Add cost controls for cloud runs: instance budgets, lifecycle rules, and automated shutdown.
 - Store raw data and processed artifacts with versioned manifests so experiments are reproducible.
 - Rotate any credentials that were used during development and move secrets to a proper secret manager.
+
+## Operational Notes
+
+- Do not overwrite XGBoost score files (`catalonia_scores.parquet`, `bavaria_scores.parquet`) with legacy binary MLP output unless explicitly comparing baselines.
+- Watch EC2 disk usage during large preprocessing runs: `df -h /`.
+- Terraform `destroy` will fail if S3 bucket is non-empty. Empty the bucket first with `aws s3 rm s3://agri-open-eye-data --recursive`.
+- Any credentials used during development should be rotated and moved to a proper secret manager before sharing the repository.
 
 ## Report Summary
 
